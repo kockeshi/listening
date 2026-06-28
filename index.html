@@ -142,12 +142,23 @@
 </div>
 
 <script>
-// 入力された値をその場でハッシュ化して比較する
-async function checkAuth() {
-  if (localStorage.getItem("auth_success") === "true") return;
+// ==========================================
+// 簡易認証機能
+// ==========================================
+(async function checkAuth() {
+  if (localStorage.getItem("auth_success") === "true") {
+    return; // 認証済みなら何もしない
+  }
+
+  // 画面を一旦真っ白にして非表示にする（バイパス防止）
+  document.documentElement.style.display = 'none';
 
   const userInput = prompt("enter the key：");
-  
+  if (!userInput) {
+    denyAccess();
+    return;
+  }
+
   // 入力値をSHA-256に変換
   const msgBuffer = new TextEncoder().encode(userInput);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -155,16 +166,24 @@ async function checkAuth() {
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
   // ハッシュ値
-  const CORRECT_HASH = "1f5e2f930c6065b6c2e3f116554d0d74f2d30f870311a18369276e80e409a074";
+  const CORRECT_HASH = "1f5e2f930c6065b6c2e3f116554d0d74f2d30f870311a18369276e80e409a074"; 
 
   if (hashHex === CORRECT_HASH) {
     localStorage.setItem("auth_success", "true");
+    document.documentElement.style.display = ''; // 画面を表示
     location.reload();
   } else {
-    alert("認証に失敗しました。");
-    document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%;'>Access Denied</h1>";
+    denyAccess();
   }
-}
+
+  function denyAccess() {
+    document.documentElement.style.display = '';
+    alert("認証に失敗しました。");
+    document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%; font-family:sans-serif;'>Access Denied</h1>";
+    throw new Error("Auth failed"); // 処理を強制停止
+  }
+})();
+// ==========================================
 const topics = [
   {
     title: "Interview: Cloud Security Role",
