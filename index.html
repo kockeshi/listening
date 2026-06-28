@@ -159,6 +159,9 @@
     return;
   }
 
+  // 💡 【追加】スマホの自動大文字化対策：入力をすべて小文字に統一する
+  const sanitizedInput = userInput.trim().toLowerCase();
+
   // 入力値をSHA-256に変換
   const msgBuffer = new TextEncoder().encode(userInput);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -173,8 +176,6 @@
     document.documentElement.style.display = ''; // 画面を表示
     location.reload();
   } else {
-    // 🔍 【デバッグ用】実際に生成されたハッシュ値をアラートで表示させる
-    alert("入力された値のハッシュ値はこれです:\n" + hashHex);
     denyAccess();
   }
 
