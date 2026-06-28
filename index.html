@@ -23,12 +23,10 @@
     padding: 16px;
     max-width: 720px;
     margin-inline: auto;
-    padding-bottom: 80px; /* 下部固定コントローラー用の余白 */
+    padding-bottom: 80px;
   }
   h1 { font-size: 20px; margin: 8px 0 4px; }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
-  
-  /* タブを動的生成に対応 */
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
   .tab {
     flex: 1;
@@ -43,7 +41,6 @@
     color: var(--muted);
   }
   .tab.active { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
-  
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -52,8 +49,6 @@
     margin-bottom: 14px;
   }
   .card h2 { font-size: 15px; margin: 0 0 10px; color: var(--accent); }
-  
-  /* 固定フッターコントローラー（スマホでの操作性向上） */
   .sticky-controls {
     position: fixed;
     bottom: 0;
@@ -67,9 +62,7 @@
     justify-content: center;
     z-index: 100;
   }
-  
   .controls-top { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-  
   button {
     background: var(--accent);
     color: white;
@@ -82,7 +75,6 @@
   }
   button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
   button:active { opacity: 0.8; }
-  
   select {
     background: var(--card);
     color: var(--text);
@@ -103,17 +95,14 @@
   .line.speaking { background: var(--accent-soft); border-color: var(--accent); }
   .speaker { color: var(--accent); font-weight: 600; font-size: 12px; }
   .jp { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-  
   .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .toggle-row span { font-size: 13px; color: var(--muted); }
-  
   .qa { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
   .qa h3 { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
   .qitem { font-size: 13.5px; margin-bottom: 10px; }
   .qitem .q { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
   .qitem .a { color: var(--accent); display: none; padding: 4px 0; }
   .qitem .a.show { display: block; }
-  
   .small-btn {
     font-size: 11px;
     padding: 6px 10px;
@@ -129,12 +118,9 @@
 <h1>🎧 リスニング基礎練習</h1>
 <div class="sub">繰り返し聞き込み用。スクリプト表示・速度調整・PWA対応。</div>
 
-<!-- タブコンテナ（JSで動的生成） -->
 <div class="tabs" id="tabContainer"></div>
-
 <div id="content"></div>
 
-<!-- スマホで押しきりやすい固定コントローラー -->
 <div class="sticky-controls">
   <button onclick="playAll()" style="flex: 2;">▶ 全文再生</button>
   <button class="secondary" onclick="repeatCurrentLine()" style="flex: 1;">🔁 1文リピート</button>
@@ -147,10 +133,9 @@
 // ==========================================
 (async function checkAuth() {
   if (localStorage.getItem("auth_success") === "true") {
-    return; // 認証済みなら何もしない
+    return;
   }
 
-  // 画面を一旦真っ白にして非表示にする（バイパス防止）
   document.documentElement.style.display = 'none';
 
   const userInput = prompt("enter the key：");
@@ -159,21 +144,18 @@
     return;
   }
 
-  // 💡 【追加】スマホの自動大文字化対策：入力をすべて小文字に統一する
   const sanitizedInput = userInput.trim().toLowerCase();
 
-  // 入力値をSHA-256に変換（userInput から sanitizedInput に変更）
   const msgBuffer = new TextEncoder().encode(sanitizedInput);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-  // ハッシュ値
   const CORRECT_HASH = "2806cc1fae48ecdf333ee899201f893e11a141b711589ff2bc70fae43b17409c"; 
 
   if (hashHex === CORRECT_HASH) {
     localStorage.setItem("auth_success", "true");
-    document.documentElement.style.display = ''; // 画面を表示
+    document.documentElement.style.display = ''; 
     location.reload();
   } else {
     denyAccess();
@@ -183,10 +165,11 @@
     document.documentElement.style.display = '';
     alert("認証に失敗しました。");
     document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%; font-family:sans-serif;'>Access Denied</h1>";
-    throw new Error("Auth failed"); // 処理を強制停止
+    throw new Error("Auth failed");
   }
 })();
 // ==========================================
+
 const topics = [
   {
     title: "Interview: Cloud Security Role",
@@ -222,7 +205,6 @@ const topics = [
       { q: "Q3. What time is breakfast served?", a: "A: From 7 to 10 in the morning." }
     ]
   }
-  // 💡 今後ここにトピックを追加するだけで自動的にタブが増えます
 ];
 
 let currentTopic = 0;
@@ -253,7 +235,6 @@ function render() {
     <div class="card">
       <h2>${t.title}</h2>
       <div class="sub" style="margin-bottom:12px;">${t.desc}</div>
-
       <div class="controls-top">
         <select id="speedSelect" onchange="rate = parseFloat(this.value)">
           <option value="0.7">0.7x (ゆっくり)</option>
@@ -263,9 +244,7 @@ function render() {
         </select>
         <button class="secondary" onclick="toggleJP()" id="jpToggleBtn" style="margin-left: auto;">和訳: ${showJP ? 'ON' : 'OFF'}</button>
       </div>
-
       <div id="lines"></div>
-
       <div class="qa">
         <h3>設問・解答</h3>
         <div id="questions"></div>
@@ -317,25 +296,20 @@ function pickVoice() {
   return voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en')) || voices[0];
 }
 
-// なめらかな連続再生のためのバッファリングロジック
 function playAll() {
   speechSynthesis.cancel();
   const t = topics[currentTopic];
-  
   t.lines.forEach((line, idx) => {
     const utter = new SpeechSynthesisUtterance(line.text);
     utter.lang = 'en-US';
     utter.rate = rate;
     const voice = pickVoice();
     if (voice) utter.voice = voice;
-
     utter.onstart = () => {
       currentLineIdx = idx;
       renderLines();
-      // 再生中の行まで自動スクロール
       document.getElementById(`line-${idx}`).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
-
     if (idx === t.lines.length - 1) {
       utter.onend = () => {
         currentLineIdx = -1;
@@ -350,14 +324,12 @@ function playLine(idx) {
   speechSynthesis.cancel();
   currentLineIdx = idx;
   renderLines();
-
   const t = topics[currentTopic];
   const utter = new SpeechSynthesisUtterance(t.lines[idx].text);
   utter.lang = 'en-US';
   utter.rate = rate;
   const voice = pickVoice();
   if (voice) utter.voice = voice;
-  
   utter.onend = () => {
     currentLineIdx = -1;
     renderLines();
@@ -384,6 +356,5 @@ if ('speechSynthesis' in window) {
 initTabs();
 render();
 </script>
-
 </body>
 </html>
