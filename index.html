@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>リスニング基礎練習 Pro</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #181b22;
+    --accent: #5b8cff;
+    --accent-soft: #1e2a45;
+    --text: #e7e9ee;
+    --muted: #8b93a3;
+    --border: #2a2e38;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    padding: 16px;
+    max-width: 720px;
+    margin-inline: auto;
+    padding-bottom: 80px; /* 下部固定コントローラー用の余白 */
+  }
+  h1 { font-size: 20px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  
+  /* タブを動的生成に対応 */
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+  .tab {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px;
+    text-align: center;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .tab.active { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
+  
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 10px; color: var(--accent); }
+  
+  /* 固定フッターコントローラー（スマホでの操作性向上） */
+  .sticky-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #14171f;
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    z-index: 100;
+  }
+  
+  .controls-top { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  button:active { opacity: 0.8; }
+  
+  select {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .line {
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+  .line.speaking { background: var(--accent-soft); border-color: var(--accent); }
+  .speaker { color: var(--accent); font-weight: 600; font-size: 12px; }
+  .jp { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .toggle-row span { font-size: 13px; color: var(--muted); }
+  
+  .qa { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
+  .qa h3 { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  .qitem { font-size: 13.5px; margin-bottom: 10px; }
+  .qitem .q { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .qitem .a { color: var(--accent); display: none; padding: 4px 0; }
+  .qitem .a.show { display: block; }
+  
+  .small-btn {
+    font-size: 11px;
+    padding: 6px 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎧 リスニング基礎練習</h1>
+<div class="sub">繰り返し聞き込み用。スクリプト表示・速度調整・PWA対応。</div>
+
+<!-- タブコンテナ（JSで動的生成） -->
+<div class="tabs" id="tabContainer"></div>
+
+<div id="content"></div>
+
+<!-- スマホで押しきりやすい固定コントローラー -->
+<div class="sticky-controls">
+  <button onclick="playAll()" style="flex: 2;">▶ 全文再生</button>
+  <button class="secondary" onclick="repeatCurrentLine()" style="flex: 1;">🔁 1文リピート</button>
+  <button class="secondary" onclick="stopPlay()" style="flex: 1;">⏹ 停止</button>
+</div>
+
+<script>
+// 入力された値をその場でハッシュ化して比較する
+async function checkAuth() {
+  if (localStorage.getItem("auth_success") === "true") return;
+
+  const userInput = prompt("enter the key：");
+  
+  // 入力値をSHA-256に変換
+  const msgBuffer = new TextEncoder().encode(userInput);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // ハッシュ値
+  const CORRECT_HASH = "1f5e2f930c6065b6c2e3f116554d0d74f2d30f870311a18369276e80e409a074";
+
+  if (hashHex === CORRECT_HASH) {
+    localStorage.setItem("auth_success", "true");
+    location.reload();
+  } else {
+    alert("認証に失敗しました。");
+    document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:20%;'>Access Denied</h1>";
+  }
+}
+const topics = [
+  {
+    title: "Interview: Cloud Security Role",
+    desc: "面接官との会話。クラウドセキュリティの業務内容について質問されるシーン。",
+    lines: [
+      { speaker: "Interviewer", text: "Thanks for joining us today. Could you start by telling me a bit about your current role?", jp: "本日はありがとうございます。まず、現在のお仕事について教えていただけますか？" },
+      { speaker: "Candidate", text: "Sure. I work as a cloud security engineer, mainly focused on Azure infrastructure.", jp: "はい。私はクラウドセキュリティエンジニアとして、主にAzureのインフラを担当しています。" },
+      { speaker: "Interviewer", text: "Interesting. What does a typical day look like for you?", jp: "面白いですね。一日の業務はどのような感じですか？" },
+      { speaker: "Candidate", text: "I spend a lot of time managing infrastructure with Terraform, and I also support our security operations team.", jp: "Terraformを使ったインフラ管理に多くの時間を使っていて、SOCチームのサポートも行っています。" },
+      { speaker: "Interviewer", text: "And how do you usually handle a security incident when one comes up?", jp: "セキュリティのインシデントが発生した時は、このように対応されますか？" },
+      { speaker: "Candidate", text: "We follow a runbook that outlines the steps, but I also try to explain the reasoning behind each step.", jp: "手順を示したランブックに従いますが、各ステップの背景にある理由も説明するようにしています。" }
+    ],
+    questions: [
+      { q: "Q1. What is the candidate's main responsibility?", a: "A: Managing Azure infrastructure as a cloud security engineer." },
+      { q: "Q2. What tool does the candidate mention for infrastructure management?", a: "A: Terraform." },
+      { q: "Q3. What does the candidate do during a security incident?", a: "A: Follows a runbook and explains the reasoning behind each step." }
+    ]
+  },
+  {
+    title: "Hotel Check-in at the Airport Area",
+    desc: "ホテルのチェックインでのやり取り。予約確認、部屋タイプ、Wi-Fi、朝食時間など。",
+    lines: [
+      { speaker: "Staff", text: "Good evening, welcome to the hotel. Do you have a reservation under your name?", jp: "こんばんは、ご来館ありがとうございます。お名前でご予約されていますか？" },
+      { speaker: "Guest", text: "Yes, I booked a single room for two nights starting today.", jp: "はい、今日から2泊でシングルルームを予約しています。" },
+      { speaker: "Staff", text: "Let me check... yes, I have your reservation here. Could I see your passport, please?", jp: "確認いたします…はい、ご予約がございます。パスポートを拝見してもよろしいでしょうか？" },
+      { speaker: "Guest", text: "Sure, here you go. Also, is breakfast included in the rate?", jp: "はい、どうぞ。あと、料金に朝食は含まれていますか？" },
+      { speaker: "Staff", text: "Yes, breakfast is served from 7 to 10 in the morning on the second floor.", jp: "はい、朝食は2階で朝7時から10時まで提供しております。" },
+      { speaker: "Staff", text: "Your room is on the fifth floor, and the Wi-Fi password is printed on this card.", jp: "お部屋は5階で、Wi-Fiのパスワードはこちらのカードに記載されています。" }
+    ],
+    questions: [
+      { q: "Q1. How many nights did the guest book?", a: "A: Two nights." },
+      { q: "Q2. What does the staff ask to see?", a: "A: The guest's passport." },
+      { q: "Q3. What time is breakfast served?", a: "A: From 7 to 10 in the morning." }
+    ]
+  }
+  // 💡 今後ここにトピックを追加するだけで自動的にタブが増えます
+];
+
+let currentTopic = 0;
+let showJP = true;
+let rate = 0.9;
+let currentLineIdx = -1;
+
+function initTabs() {
+  const container = document.getElementById('tabContainer');
+  container.innerHTML = topics.map((t, i) => `
+    <div class="tab ${i === currentTopic ? 'active' : ''}" data-topic="${i}" onclick="switchTopic(${i})">
+      ${i + 1}. ${t.title.split(':')[0]}
+    </div>
+  `).join('');
+}
+
+function switchTopic(idx) {
+  stopPlay();
+  currentTopic = idx;
+  initTabs();
+  render();
+}
+
+function render() {
+  const t = topics[currentTopic];
+  const el = document.getElementById('content');
+  el.innerHTML = `
+    <div class="card">
+      <h2>${t.title}</h2>
+      <div class="sub" style="margin-bottom:12px;">${t.desc}</div>
+
+      <div class="controls-top">
+        <select id="speedSelect" onchange="rate = parseFloat(this.value)">
+          <option value="0.7">0.7x (ゆっくり)</option>
+          <option value="0.9" selected>0.9x (標準)</option>
+          <option value="1.0">1.0x (本番速度)</option>
+          <option value="1.2">1.2x (負荷かけ用)</option>
+        </select>
+        <button class="secondary" onclick="toggleJP()" id="jpToggleBtn" style="margin-left: auto;">和訳: ${showJP ? 'ON' : 'OFF'}</button>
+      </div>
+
+      <div id="lines"></div>
+
+      <div class="qa">
+        <h3>設問・解答</h3>
+        <div id="questions"></div>
+      </div>
+    </div>
+  `;
+  renderLines();
+  renderQuestions();
+}
+
+function renderLines() {
+  const t = topics[currentTopic];
+  const linesEl = document.getElementById('lines');
+  linesEl.innerHTML = t.lines.map((line, i) => `
+    <div class="line ${i === currentLineIdx ? 'speaking' : ''}" id="line-${i}" onclick="playLine(${i})">
+      <div class="speaker">${line.speaker}</div>
+      <div>${line.text}</div>
+      ${showJP ? `<div class="jp">${line.jp}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderQuestions() {
+  const t = topics[currentTopic];
+  const qEl = document.getElementById('questions');
+  qEl.innerHTML = t.questions.map((item, i) => `
+    <div class="qitem">
+      <div class="q">
+        <span>${item.q}</span>
+        <button class="small-btn" onclick="toggleAnswer(${i})">答え</button>
+      </div>
+      <div class="a" id="ans-${i}">${item.a}</div>
+    </div>
+  `).join('');
+}
+
+function toggleAnswer(i) {
+  document.getElementById(`ans-${i}`).classList.toggle('show');
+}
+
+function toggleJP() {
+  showJP = !showJP;
+  document.getElementById('jpToggleBtn').textContent = `和訳: ${showJP ? 'ON' : 'OFF'}`;
+  renderLines();
+}
+
+function pickVoice() {
+  const voices = speechSynthesis.getVoices();
+  return voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en')) || voices[0];
+}
+
+// なめらかな連続再生のためのバッファリングロジック
+function playAll() {
+  speechSynthesis.cancel();
+  const t = topics[currentTopic];
+  
+  t.lines.forEach((line, idx) => {
+    const utter = new SpeechSynthesisUtterance(line.text);
+    utter.lang = 'en-US';
+    utter.rate = rate;
+    const voice = pickVoice();
+    if (voice) utter.voice = voice;
+
+    utter.onstart = () => {
+      currentLineIdx = idx;
+      renderLines();
+      // 再生中の行まで自動スクロール
+      document.getElementById(`line-${idx}`).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    if (idx === t.lines.length - 1) {
+      utter.onend = () => {
+        currentLineIdx = -1;
+        renderLines();
+      };
+    }
+    speechSynthesis.speak(utter);
+  });
+}
+
+function playLine(idx) {
+  speechSynthesis.cancel();
+  currentLineIdx = idx;
+  renderLines();
+
+  const t = topics[currentTopic];
+  const utter = new SpeechSynthesisUtterance(t.lines[idx].text);
+  utter.lang = 'en-US';
+  utter.rate = rate;
+  const voice = pickVoice();
+  if (voice) utter.voice = voice;
+  
+  utter.onend = () => {
+    currentLineIdx = -1;
+    renderLines();
+  };
+  speechSynthesis.speak(utter);
+}
+
+function repeatCurrentLine() {
+  if (currentLineIdx !== -1) {
+    playLine(currentLineIdx);
+  }
+}
+
+function stopPlay() {
+  speechSynthesis.cancel();
+  currentLineIdx = -1;
+  renderLines();
+}
+
+if ('speechSynthesis' in window) {
+  speechSynthesis.onvoiceschanged = () => {};
+}
+
+initTabs();
+render();
+</script>
+
+</body>
+</html>
