@@ -173,6 +173,8 @@
     document.documentElement.style.display = ''; // 画面を表示
     location.reload();
   } else {
+    // 🔍 【デバッグ用】実際に生成されたハッシュ値をアラートで表示させる
+    alert("入力された値のハッシュ値はこれです:\n" + hashHex);
     denyAccess();
   }
 
