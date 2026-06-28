@@ -166,7 +166,7 @@
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
   // ハッシュ値
-  const CORRECT_HASH = "1f5e2f930c6065b6c2e3f116554d0d74f2d30f870311a18369276e80e409a074"; 
+  const CORRECT_HASH = "2806cc1fae48ecdf333ee899201f893e11a141b711589ff2bc70fae43b17409c"; 
 
   if (hashHex === CORRECT_HASH) {
     localStorage.setItem("auth_success", "true");
